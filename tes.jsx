@@ -1,21 +1,24 @@
-import { Button, Card, Form, Input, InputNumber, message, Modal, Select, Table } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Select, Table } from 'antd';
 import React, { useEffect, useState } from 'react'
 import supabase from '../utils/supabase';
-import { Option } from 'antd/es/mentions';
 
 const Product = () => {
   const [ data, setData ] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [edit, setEdit] = useState(false);
+  const [isEdit, setIsEdited]= useState(false);
   const [selected, setSelected] = useState(null);
-  const [form] = Form.useForm();
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+  });
+  const [ form ] = Form.useForm();
 
   const columns = [
     {
       title: 'No',
       dataIndex: '',
       key: 'no',
-      render: ( _, __, i ) => <p>{ i + 1 }</p>
+      render: ( _, __, i ) => <p>{(pagination.current - 1) * pagination.pageSize + i + 1}</p>
     },
     {
       title: 'Name Product',
@@ -39,17 +42,24 @@ const Product = () => {
       render: (status) => <p>{ status ? "Tersedia" : "Belum Tersedia" }</p>
     },
     {
-      title: 'action',
-      dataIndex: '',
-      width: 300,
+      title: "Action",
       key: 'action',
-      render: (_, data) => (
-        <div>
-          <Button onClick={() => handleEdit(data)}>Updated</Button>
-          <Button className='' onClick={() => handleDeleted(data.id)} >Deleted</Button>
+      width:100,
+      render: (data) => (
+        <div className='flex items-center gap-3'>
+          <Button onClick={() => handleEdited(data)} type='primary' >
+            Edit
+          </Button>
+          <Button 
+            danger 
+            type='primary' 
+            onClick={() => handleDeleted(data.id)}
+          >
+            Deleted
+          </Button>
         </div>
       )
-    },
+    }
   ];
 
   const fetchData = async () => {
@@ -63,23 +73,24 @@ const Product = () => {
   };
 
   const handleDeleted = async (id) => {
-    if(!confirm('yakin ingin menghapus data ini? ')) return 
- 
-    const { error } = await supabase.from('product').delete().eq('id', id);
-    
+    if(!confirm('are you sure, delete this data ?')) return; 
+
+    const { error } = await supabase.from('product').delete().eq("id", id);
+
     if(error) {
-      console.error(error.message)
+      console.error(error.message);
     } else {
       fetchData();
+      alert('data delete succresfully')
     }
-  }
+  };
 
-  const handleSubmit = async (value) => {
+  const handleSubmit = async (values) => {
     const payload = {
-      name_product: value.nameProduct,
-      price: value.priceProduct,
-      status: value.statusProduct,
-      stock: value.stockProduct,
+      name_product: values.nameProduct,
+      price: values.priceProduct,
+      stock: values.stockProduct,
+      status: values.statusProduct,
     };
 
     const { error } = await supabase.from('product').insert(payload);
@@ -90,22 +101,24 @@ const Product = () => {
       fetchData();
     }
 
-    form.resetFields()
     setIsOpen(false);
+    form.resetFields()
   };
 
-  const handleEdit = (record) => {
-    setEdit(true);
-    setSelected(record);
-    setIsOpen(true)
+  const handleEdited = (data) => {
+    setIsOpen(true);
+    setSelected(data);
+    setIsEdited(true);
 
     form.setFieldsValue({
-      nameProduct: record.name_product,
-      priceProduct: record.price,
-      statusProduct: record.status,
-      stockProduct: record.stock,
-    })
-  }
+      nameProduct: data.name_product,
+      priceProduct: data.price,
+      stockProduct: data.stock,
+      statusProduct: data.status,
+    });
+    
+
+  };
 
   useEffect(() => {
     fetchData();
@@ -113,76 +126,117 @@ const Product = () => {
 
   return (
     <div>
-      <button onClick={() => setIsOpen(true)} >tambah</button>
+      <div className='w-full flex items-center justify-between mb-5'>
+        <h1 className='text-lg text-gray-700 font-semibold' >Table Product</h1>
+        <Button 
+          variant='outlined'
+          color='primary'
+          onClick={() => setIsOpen(true)}
+        >
+          create product
+        </Button>
+      </div>
       <Table
         dataSource={data}
         columns={columns}
-      />
-      <Modal  
-        title="Tambah"
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          onChange: (page,pageSize) => {
+            setPagination({
+              current: page, pageSize
+            })
+          }
+        }}
+      /> 
+
+      <Modal
+        open={isOpen} 
         onOk={() => form.submit()}
-        open={isOpen}
         onCancel={() => {
           setIsOpen(false)
         }}
-        okText={'submit'}
+        okText='submit'
       >
         <Form
-          onFinish={handleSubmit}
           form={form}
+          onFinish={handleSubmit}
           layout='vertical'
         >
-          {/* name product */}
-          <Form.Item 
-            label={'Name Product'}
+          {/* input name product */}
+          <Form.Item
             name={'nameProduct'}
-            rules={[{ 
+            label="Name Product"
+            rules={[{
               required: true,
-              message: "Name Prodoct is not kosong"
+              message: "input product can not be blank"
             }]}
           >
-            <Input/>
+            <Input 
+              placeholder='input name product'
+            />
           </Form.Item>
-          
-          {/* price */}
+
+          {/* input price */}
           <Form.Item
-            label={'Name Product'}
             name={'priceProduct'}
-            rules={[{ 
+            label="Price Product"
+            rules={[{
               required: true,
-              message: "Name Prodoct is not kosong"
+              message: "input price product can not be blank"
             }]}
           >
-            <InputNumber min={0} style={{width: '100%'}}/>
+            <InputNumber 
+              min={0} 
+              style={{
+                width: '100%'
+              }}
+              placeholder='input price'
+            />
           </Form.Item>
 
-          {/* stock */}
+          {/* input stock */}
           <Form.Item
-            label={'Name Product'}
             name={'stockProduct'}
-            rules={[{ 
+            label="Stock Product"
+            rules={[{
               required: true,
-              message: "Name Prodoct is not kosong"
+              message: "input stock product can not be blank"
             }]}
           >
-            <InputNumber min={0} style={{width: '100%'}}/>
+            <InputNumber 
+              min={0} 
+              style={{
+                width: '100%'
+              }}
+              placeholder='input stock product'
+            />
           </Form.Item>
 
-          {/* status product */}
+          {/* select status product */}
           <Form.Item
-            label={'status Product'}
+            label="Satus Product"
             name={'statusProduct'}
-            rules={[{ 
+            rules={[{
               required: true,
-              message: "Name Prodoct is not kosong"
+              message: "select status product can not be blank"
             }]}
           >
-            <Select>
-              <Select.Option value={true} >Tersedia</Select.Option>
-              <Select.Option value={false} >Belum Tersedia</Select.Option>
+            <Select
+              placeholder="select status product"
+            >
+              <Select.Option
+                value={true}
+              >
+                Tersedia
+              </Select.Option>
+              <Select.Option
+                value={false}
+              >
+                Belum Tersedia
+              </Select.Option>
             </Select>
           </Form.Item>
-          
         </Form>
       </Modal>
     </div>

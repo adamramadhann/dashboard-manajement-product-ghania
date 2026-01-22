@@ -1,10 +1,13 @@
-import { Button, Card, Form, Input, InputNumber, message, Modal, Select, Table } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Select, Table } from 'antd';
 import React, { useEffect, useState } from 'react'
 import supabase from '../utils/supabase';
 import { Option } from 'antd/es/mentions';
+import { UploadOutlined } from '@ant-design/icons';
 
 const Product = () => {
   const [ data, setData ] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [ form ] = Form.useForm();
 
   const columns = [
     {
@@ -33,6 +36,25 @@ const Product = () => {
       dataIndex: 'status',
       key: 'status_product',
       render: (status) => <p>{ status ? "Tersedia" : "Belum Tersedia" }</p>
+    },
+    {
+      title: "Action",
+      key: 'action',
+      width:100,
+      render: (data) => (
+        <div className='flex items-center gap-3'>
+          <Button type='primary' >
+            Edit
+          </Button>
+          <Button 
+            danger 
+            type='primary' 
+            onClick={() => handleDeleted(data.id)}
+          >
+            Deleted
+          </Button>
+        </div>
+      )
     }
   ];
 
@@ -46,17 +68,160 @@ const Product = () => {
     }
   };
 
+  const handleDeleted = async (id) => {
+    if(!confirm('are you sure, delete this data ?')) return; 
+
+    const { error } = await supabase.from('product').delete().eq("id", id);
+
+    if(error) {
+      console.error(error.message);
+    } else {
+      fetchData();
+      alert('data delete succresfully')
+    }
+  };
+
+  const handleSubmit = async (values) => {
+    const payload = {
+      name_product: values.nameProduct,
+      priceProduct: values.price,
+      stockProduct: values.stock,
+      statusProduct: values.status,
+    };
+
+    const { error } = await supabase.from('product').insert(payload);
+
+    if(error) {
+      console.error(error.message);
+    } else {
+      fetchData();
+    }
+
+    setIsOpen(false);
+    form.resetFields()
+  };
+
+  const handleUpdated = (record) =>{
+    setIsOpen(true);
+
+    form.setFieldValue({
+      nameProduct: record.name_product,
+      priceProduct: values.price,
+      stockProduct: values.stock,
+      statusProduct: values.status,
+    });
+  };
+
   useEffect(() => {
     fetchData();
   }, [])
 
   return (
     <div>
-      <button onClick={() => setIsOpen(true)} >tambah</button>
+      <div className='w-full flex items-center justify-between mb-5'>
+        <h1 className='text-lg text-gray-700 font-semibold' >Table Product</h1>
+        <Button 
+          variant='outlined'
+          color='primary'
+          onClick={() => setIsOpen(true)}
+        >
+          create product
+        </Button>
+      </div>
       <Table
         dataSource={data}
         columns={columns}
       /> 
+
+      <Modal
+        open={isOpen} 
+        onOk={() => form.submit()}
+        onCancel={() => {
+          setIsOpen(false)
+        }}
+        okText='submit'
+      >
+        <Form
+          form={form}
+          onFinish={handleSubmit}
+          layout='vertical'
+        >
+          {/* input name product */}
+          <Form.Item
+            name={'nameProduct'}
+            label="Name Product"
+            rules={[{
+              required: true,
+              message: "input product can not be blank"
+            }]}
+          >
+            <Input 
+              placeholder='input name product'
+            />
+          </Form.Item>
+
+          {/* input price */}
+          <Form.Item
+            name={'priceProduct'}
+            label="Price Product"
+            rules={[{
+              required: true,
+              message: "input price product can not be blank"
+            }]}
+          >
+            <InputNumber 
+              min={0} 
+              style={{
+                width: '100%'
+              }}
+              placeholder='input price'
+            />
+          </Form.Item>
+
+          {/* input stock */}
+          <Form.Item
+            name={'stockProduct'}
+            label="Stock Product"
+            rules={[{
+              required: true,
+              message: "input stock product can not be blank"
+            }]}
+          >
+            <InputNumber 
+              min={0} 
+              style={{
+                width: '100%'
+              }}
+              placeholder='input stock product'
+            />
+          </Form.Item>
+
+          {/* select status product */}
+          <Form.Item
+            label="Satus Product"
+            name={'statusProduct'}
+            rules={[{
+              required: true,
+              message: "select status product can not be blank"
+            }]}
+          >
+            <Select
+              placeholder="select status product"
+            >
+              <Select.Option
+                value={true}
+              >
+                Tersedia
+              </Select.Option>
+              <Select.Option
+                value={false}
+              >
+                Belum Tersedia
+              </Select.Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
