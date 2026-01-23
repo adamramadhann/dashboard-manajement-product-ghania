@@ -7,6 +7,8 @@ import { UploadOutlined } from '@ant-design/icons';
 const Product = () => {
   const [ data, setData ] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [edit, setEdit] = useState(false);
+  const [selected, setSelected] = useState(null);
   const [ form ] = Form.useForm();
 
   const columns = [
@@ -43,7 +45,7 @@ const Product = () => {
       width:100,
       render: (data) => (
         <div className='flex items-center gap-3'>
-          <Button type='primary' >
+          <Button onClick={() => handleUpdated(data)} type='primary' >
             Edit
           </Button>
           <Button 
@@ -84,12 +86,20 @@ const Product = () => {
   const handleSubmit = async (values) => {
     const payload = {
       name_product: values.nameProduct,
-      priceProduct: values.price,
-      stockProduct: values.stock,
-      statusProduct: values.status,
+      price: values.priceProduct,
+      stock: values.stockProduct,
+      status: values.statusProduct,
     };
 
-    const { error } = await supabase.from('product').insert(payload);
+    let query;
+    
+    if(edit){
+      query = await supabase.from('product').update(payload).eq("id", selected.id)
+    } else {
+      query = await supabase.from('product').insert(payload);
+    }
+
+    const { error } = query;
 
     if(error) {
       console.error(error.message);
@@ -98,17 +108,20 @@ const Product = () => {
     }
 
     setIsOpen(false);
+    setEdit(false);
     form.resetFields()
   };
 
   const handleUpdated = (record) =>{
     setIsOpen(true);
+    setSelected(record);
+    setEdit(true);
 
-    form.setFieldValue({
+    form.setFieldsValue({
       nameProduct: record.name_product,
-      priceProduct: values.price,
-      stockProduct: values.stock,
-      statusProduct: values.status,
+      priceProduct: record.price,
+      stockProduct: record.stock,
+      statusProduct: record.status,
     });
   };
 
