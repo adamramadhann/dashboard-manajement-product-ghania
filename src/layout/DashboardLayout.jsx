@@ -10,8 +10,7 @@ const DashboardLayout = () => {
 
         <div className='flex-1' >
             <Header/>
-            <div className='flex-1 p-5'>
-            {/* <div className='flex-1 h-full p-5'> */}
+            <div className='flex-1 p-5 overflow-y-auto'>
               <Outlet/>
             </div>
         </div>
