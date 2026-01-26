@@ -1,4 +1,4 @@
-import { HomeOutlined, ProductOutlined, UserOutlined } from '@ant-design/icons';
+import { HomeOutlined, ProductOutlined, StockOutlined, UserOutlined } from '@ant-design/icons';
 import { Menu } from 'antd';
 import React, { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +18,11 @@ const Sidebar = () => {
             key : "/product",  // navigate('/product')
             icon: <ProductOutlined />,
             label: "Product"
+        },
+        {
+            key : "/riwayat-stock",  // navigate('/riwayat-stock')
+            icon: <StockOutlined />,
+            label: "History Stock"
         },
         {
             key : "/profiles", 
