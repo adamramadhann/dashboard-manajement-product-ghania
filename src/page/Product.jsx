@@ -9,6 +9,7 @@ const Product = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [edit, setEdit] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [ form ] = Form.useForm();
 
   const columns = [
@@ -61,6 +62,7 @@ const Product = () => {
   ];
 
   const fetchData = async () => {
+    setLoading(true)
     const { data, error } = await supabase.from('product').select("*");
 
     if(error) {
@@ -68,6 +70,8 @@ const Product = () => {
     } else {
       setData(data)
     }
+
+    setLoading(false)
   };
 
   const handleDeleted = async (id) => {
@@ -94,7 +98,7 @@ const Product = () => {
     let query;
     
     if(edit){
-      query = await supabase.from('product').update(payload).eq("id", selected.id)
+      query = await supabase.from('product').update(payload).eq("id", selected.id);
     } else {
       query = await supabase.from('product').insert(payload);
     }
@@ -141,9 +145,11 @@ const Product = () => {
           create product
         </Button>
       </div>
+
       <Table
         dataSource={data}
         columns={columns}
+        loading={loading}
       /> 
 
       <Modal
