@@ -1,246 +1,238 @@
-import { Button, Form, Input, InputNumber, Modal, Select, Table } from 'antd';
-import React, { useEffect, useState } from 'react'
+import { Button, Table, Modal, Form, InputNumber, Select, message } from 'antd';
+import React, { useEffect, useState } from 'react';
 import supabase from '../utils/supabase';
 
-const Product = () => {
-  const [ data, setData ] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isEdit, setIsEdited]= useState(false);
-  const [selected, setSelected] = useState(null);
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 10,
-  });
-  const [ form ] = Form.useForm();
+const Stock = () => {
+  const [data, setData] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
 
+  // =========================
+  // TABLE COLUMN
+  // =========================
   const columns = [
     {
       title: 'No',
-      dataIndex: '',
-      key: 'no',
-      render: ( _, __, i ) => <p>{(pagination.current - 1) * pagination.pageSize + i + 1}</p>
+      render: (_, __, index) => index + 1,
     },
     {
       title: 'Name Product',
-      dataIndex: 'name_product',
-      key: 'name',
+      render: (_, record) => (
+        <span>{record.product_id?.name_product}</span>
+      ),
     },
     {
-      title: 'Price',
-      dataIndex: 'price',
-      key: 'price',
+      title: 'Qty',
+      dataIndex: 'qty',
     },
     {
-      title: 'Stock',
-      dataIndex: 'stock',
-      key: 'stock',
+      title: 'Type',
+      dataIndex: 'type',
+      render: (type) => (
+        <span
+          style={{
+            color: type ? 'green' : 'red',
+            fontWeight: 600,
+          }}
+        >
+          {type ? 'In' : 'Out'}
+        </span>
+      ),
     },
     {
-      title: 'Status Product',
-      dataIndex: 'status',
-      key: 'status_product',
-      render: (status) => <p>{ status ? "Tersedia" : "Belum Tersedia" }</p>
+      title: 'Action',
+      render: (record) => (
+        <Button danger onClick={() => handleDelete(record)}>
+          Delete
+        </Button>
+      ),
     },
-    {
-      title: "Action",
-      key: 'action',
-      width:100,
-      render: (data) => (
-        <div className='flex items-center gap-3'>
-          <Button onClick={() => handleEdited(data)} type='primary' >
-            Edit
-          </Button>
-          <Button 
-            danger 
-            type='primary' 
-            onClick={() => handleDeleted(data.id)}
-          >
-            Deleted
-          </Button>
-        </div>
-      )
-    }
   ];
 
+  // =========================
+  // FETCH HISTORY
+  // =========================
   const fetchData = async () => {
-    const { data, error } = await supabase.from('product').select("*");
+    const { data, error } = await supabase
+      .from('history_stock')
+      .select(`
+        id,
+        qty,
+        type,
+        created_at,
+        product_id (
+          id,
+          name_product
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-    if(error) {
+    if (error) {
       console.error(error.message);
-    } else {
-      setData(data)
+      return;
     }
+    setData(data);
   };
 
-  const handleDeleted = async (id) => {
-    if(!confirm('are you sure, delete this data ?')) return; 
+  // =========================
+  // FETCH PRODUCT
+  // =========================
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from('product')
+      .select('id, name_product, stock');
 
-    const { error } = await supabase.from('product').delete().eq("id", id);
-
-    if(error) {
+    if (error) {
       console.error(error.message);
-    } else {
-      fetchData();
-      alert('data delete succresfully')
+      return;
     }
+    setProducts(data);
   };
 
+  // =========================
+  // CREATE STOCK (IN / OUT)
+  // =========================
   const handleSubmit = async (values) => {
-    const payload = {
-      name_product: values.nameProduct,
-      price: values.priceProduct,
-      stock: values.stockProduct,
-      status: values.statusProduct,
-    };
+    const { product_id, qty, type } = values;
+    setLoading(true);
 
-    const { error } = await supabase.from('product').insert(payload);
+    // ambil stock sekarang
+    const { data: product, error } = await supabase
+      .from('product')
+      .select('stock')
+      .eq('id', product_id)
+      .single();
 
-    if(error) {
-      console.error(error.message);
-    } else {
-      fetchData();
+    if (error) {
+      message.error(error.message);
+      setLoading(false);
+      return;
     }
 
-    setIsOpen(false);
-    form.resetFields()
-  };
+    let newStock = product.stock;
 
-  const handleEdited = (data) => {
-    setIsOpen(true);
-    setSelected(data);
-    setIsEdited(true);
+    if (type) {
+      newStock += qty;
+    } else {
+      newStock -= qty;
+      if (newStock < 0) {
+        message.error('Stock tidak mencukupi');
+        setLoading(false);
+        return;
+      }
+    }
 
-    form.setFieldsValue({
-      nameProduct: data.name_product,
-      priceProduct: data.price,
-      stockProduct: data.stock,
-      statusProduct: data.status,
+    // insert history
+    await supabase.from('history_stock').insert({
+      product_id,
+      qty,
+      type,
     });
-    
 
+    // update stock product
+    await supabase
+      .from('product')
+      .update({ stock: newStock })
+      .eq('id', product_id);
+
+    message.success('Stock berhasil diperbarui');
+    setOpen(false);
+    setLoading(false);
+    form.resetFields();
+    fetchData();
   };
 
+  // =========================
+  // DELETE HISTORY (OPSIONAL)
+  // =========================
+  const handleDelete = async (record) => {
+    if (!confirm('Delete this history?')) return;
+
+    await supabase
+      .from('history_stock')
+      .delete()
+      .eq('id', record.id);
+
+    message.success('History deleted');
+    fetchData();
+  };
+
+  // =========================
+  // INIT
+  // =========================
   useEffect(() => {
     fetchData();
-  }, [])
+    fetchProducts();
+  }, []);
 
   return (
     <div>
-      <div className='w-full flex items-center justify-between mb-5'>
-        <h1 className='text-lg text-gray-700 font-semibold' >Table Product</h1>
-        <Button 
-          variant='outlined'
-          color='primary'
-          onClick={() => setIsOpen(true)}
-        >
-          create product
+      <div className="w-full flex items-center justify-between mb-5">
+        <h1 className="text-lg text-gray-700 font-semibold">
+          Table History Stock
+        </h1>
+        <Button type="primary" onClick={() => setOpen(true)}>
+          Create Stock
         </Button>
       </div>
+
       <Table
         dataSource={data}
         columns={columns}
-        pagination={{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          onChange: (page,pageSize) => {
-            setPagination({
-              current: page, pageSize
-            })
-          }
-        }}
-      /> 
+        rowKey="id"
+      />
 
+      {/* MODAL CREATE STOCK */}
       <Modal
-        open={isOpen} 
+        title="Create Stock"
+        open={open}
         onOk={() => form.submit()}
-        onCancel={() => {
-          setIsOpen(false)
-        }}
-        okText='submit'
+        onCancel={() => setOpen(false)}
+        confirmLoading={loading}
       >
         <Form
           form={form}
+          layout="vertical"
           onFinish={handleSubmit}
-          layout='vertical'
         >
-          {/* input name product */}
           <Form.Item
-            name={'nameProduct'}
-            label="Name Product"
-            rules={[{
-              required: true,
-              message: "input product can not be blank"
-            }]}
+            name="product_id"
+            label="Product"
+            rules={[{ required: true }]}
           >
-            <Input 
-              placeholder='input name product'
-            />
+            <Select placeholder="Select product">
+              {products.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.name_product}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
 
-          {/* input price */}
           <Form.Item
-            name={'priceProduct'}
-            label="Price Product"
-            rules={[{
-              required: true,
-              message: "input price product can not be blank"
-            }]}
+            name="qty"
+            label="Qty"
+            rules={[{ required: true }]}
           >
-            <InputNumber 
-              min={0} 
-              style={{
-                width: '100%'
-              }}
-              placeholder='input price'
-            />
+            <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
 
-          {/* input stock */}
           <Form.Item
-            name={'stockProduct'}
-            label="Stock Product"
-            rules={[{
-              required: true,
-              message: "input stock product can not be blank"
-            }]}
+            name="type"
+            label="Type"
+            rules={[{ required: true }]}
           >
-            <InputNumber 
-              min={0} 
-              style={{
-                width: '100%'
-              }}
-              placeholder='input stock product'
-            />
-          </Form.Item>
-
-          {/* select status product */}
-          <Form.Item
-            label="Satus Product"
-            name={'statusProduct'}
-            rules={[{
-              required: true,
-              message: "select status product can not be blank"
-            }]}
-          >
-            <Select
-              placeholder="select status product"
-            >
-              <Select.Option
-                value={true}
-              >
-                Tersedia
-              </Select.Option>
-              <Select.Option
-                value={false}
-              >
-                Belum Tersedia
-              </Select.Option>
+            <Select placeholder="Select type">
+              <Select.Option value={true}>IN</Select.Option>
+              <Select.Option value={false}>OUT</Select.Option>
             </Select>
           </Form.Item>
         </Form>
       </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default Product
+export default Stock;
