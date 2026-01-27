@@ -1,44 +1,71 @@
 import { Button, Table } from 'antd';
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import supabase from '../utils/supabase';
 
 const Stock = () => {
+  const [data, setData] = useState([])
 
 
-const columns = [
+  const columns = [
     {
       title: 'No',
       dataIndex: '',
       key: 'no',
+      render: ( _,__, i ) => <p className=''>{ i + 1}</p>
     },
     {
       title: 'Name Product',
-      dataIndex: 'name_product',
-      key: 'name_product',
+      render: ( _, data ) => <p className=''>{ data.product_id?.name_product}</p>
     },
     {
-      title: 'Stock Product',
-      dataIndex: 'stock_product',
-      key: 'stock_product',
+      title: 'qty',
+      dataIndex: 'qty',
+      key: 'qty',
     },
     {
-      title: 'Status Stock',
-      dataIndex: 'status_product',
-      key: 'status_product',
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      render: ( data ) => <p>{data ? "In" : "Out" }</p>
     },
     {
       title: 'Action',
       dataIndex: '',
       key: 'Action',
+      width:250,
+      render: ( _, data ) => (
+        <div className='flex items-center gap-3' >
+          <Button>Edit</Button>
+          <Button>Deleted</Button>
+        </div>
+      )
     },
   ];
 
-  const data = [
-    {
-        name_product: 'beng-beng',
-        stock_product: 10,
-        status_product: "Out"
-    }
-  ];
+  const fetchData = async () => {
+    const { data, error } = await supabase
+    .from('history_stock')
+    .select(`
+      id,
+      qty,
+      type,
+      updated_at,
+      created_at,
+      product_id (
+        name_product
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+    if(error) return console.error(error.message);
+    setData(data);
+
+  };
+
+  console.log(data)
+  useEffect(() => {
+    fetchData();
+  }, [])
 
   return (
     <div>
