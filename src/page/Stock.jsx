@@ -1,9 +1,10 @@
-import { Button, Table } from 'antd';
+import { Button, Form, Input, Modal, Select, Table } from 'antd';
 import React, { useEffect, useState } from 'react'
 import supabase from '../utils/supabase';
 
 const Stock = () => {
-  const [data, setData] = useState([])
+  const [data, setData] = useState([]);
+  const [ isOpen, setIsOpen ] = useState(false);
 
 
   const columns = [
@@ -36,7 +37,7 @@ const Stock = () => {
       render: ( _, data ) => (
         <div className='flex items-center gap-3' >
           <Button>Edit</Button>
-          <Button>Deleted</Button>
+          <Button onClick={() => deletedStock(data.id)} >Deleted</Button>
         </div>
       )
     },
@@ -62,26 +63,79 @@ const Stock = () => {
 
   };
 
-  console.log(data)
+  const deletedStock = async (id) => {
+    if(!confirm('are you sure deleted this stock product??')) return;
+
+    const { error } = await supabase.from('history_stock').delete().eq('id', id);
+
+    if(error) return console.error(error.message);
+    fetchData();
+    alert("deleted succesfully !!")
+
+  };
+
   useEffect(() => {
     fetchData();
   }, [])
 
   return (
     <div>
-         <div className='w-full flex items-center justify-between mb-5'>
-        <h1 className='text-lg text-gray-700 font-semibold' >Table History Stock</h1>
-        <Button 
-          variant='outlined'
-          color='primary'
-        >
-          create product
-        </Button>
-      </div>
+        <div className='w-full flex items-center justify-between mb-5'>
+          <h1 className='text-lg text-gray-700 font-semibold' >Table History Stock</h1>
+          <Button 
+            variant='outlined'
+            color='primary'
+            onClick={() => setIsOpen(true)}
+          >
+            create stock product
+          </Button>
+        </div>
         <Table
             dataSource={data}
             columns={columns}
         />
+
+        {/* modal form */}
+        <Modal
+          open={isOpen}
+          onCancel={() => setIsOpen(false)}
+        >
+          <Form
+            layout='vertical'
+          >
+            {/* selected  product */}
+            <Form.Item
+              label="Product"
+            >
+              <Select  
+                placeholder={'selected the product'}
+              >
+                <Select.Option> Oreo </Select.Option>
+                <Select.Option> Beng2 </Select.Option>
+                <Select.Option> superstar </Select.Option>
+              </Select>
+            </Form.Item>
+
+            {/* input qty */}
+            <Form.Item
+              label='qty'
+            >
+              <Input placeholder='how many items?' />
+            </Form.Item>
+
+            {/* selected  product */}
+            <Form.Item
+              label="Type"
+            >
+              <Select  
+                placeholder={'selected the type stock'}
+              >
+                <Select.Option> In </Select.Option>
+                <Select.Option> Out </Select.Option> 
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
     </div>
   )
 }
