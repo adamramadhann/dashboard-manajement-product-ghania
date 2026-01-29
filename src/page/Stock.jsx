@@ -87,25 +87,12 @@ const Stock = () => {
   const handleSubmit = async (values) => {
     const { product_id, qty, type } = values;
 
-    const { data: product, error } = await supabase
-    .from('product')
-    .select('stock')
-    .eq('id', product_id)
-    .single();
-
-  if (error) {
-    message.error(error.message);
-    setLoading(false);
-    return;
-  }
-
-  let newStock = product.stock;
-
+    let newStock = dataProduct.stock;
 
     if(type) {
-      newStock += Number(qty);
+      newStock += qty;
     } else {
-      newStock -= Number(qty)
+      newStock -= qty
       if(newStock < 0 ) {
         message.error('stock not available');
         return
