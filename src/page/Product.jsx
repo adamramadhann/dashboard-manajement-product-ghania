@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Modal, Select, Table } from 'antd';
+import { Alert, Button, Form, Input, InputNumber, Modal, Select, Table } from 'antd';
 import React, { useEffect, useState } from 'react'
 import supabase from '../utils/supabase';
 import { Option } from 'antd/es/mentions';
@@ -10,6 +10,7 @@ const Product = () => {
   const [edit, setEdit] = useState(false);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [alertSucces, setAllertSucces] = useState(false)
   const [ form ] = Form.useForm();
 
   const columns = [
@@ -62,7 +63,8 @@ const Product = () => {
   ];
 
   const fetchData = async () => {
-    setLoading(true)
+    setLoading(true);
+
     const { data, error } = await supabase.from('product').select("*");
 
     if(error) {
@@ -71,7 +73,7 @@ const Product = () => {
       setData(data)
     }
 
-    setLoading(false)
+    setLoading(false);
   };
 
   const handleDeleted = async (id) => {
@@ -99,8 +101,9 @@ const Product = () => {
     
     if(edit){
       query = await supabase.from('product').update(payload).eq("id", selected.id);
+    
     } else {
-      query = await supabase.from('product').insert(payload);
+      query = await supabase.from('product').insert(payload); 
     }
 
     const { error } = query;
@@ -108,8 +111,14 @@ const Product = () => {
     if(error) {
       console.error(error.message);
     } else {
+      setAllertSucces(true);
       fetchData();
     }
+
+    
+    setTimeout(() => {
+      setAllertSucces(false)
+    }, 5000)
 
     setIsOpen(false);
     setEdit(false);
@@ -197,24 +206,6 @@ const Product = () => {
             />
           </Form.Item>
 
-          {/* input stock */}
-          <Form.Item
-            name={'stockProduct'}
-            label="Stock Product"
-            rules={[{
-              required: true,
-              message: "input stock product can not be blank"
-            }]}
-          >
-            <InputNumber 
-              min={0} 
-              style={{
-                width: '100%'
-              }}
-              placeholder='input stock product'
-            />
-          </Form.Item>
-
           {/* select status product */}
           <Form.Item
             label="Satus Product"
@@ -241,6 +232,19 @@ const Product = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {
+        alertSucces && (
+          <Alert
+            className={'fixed! top-5 right-5'}
+            title="Success Tips"
+            description="Detailed description and advice about successful copywriting."
+            type="success"
+            showIcon
+          />
+        )
+      }
+
     </div>
   )
 }
