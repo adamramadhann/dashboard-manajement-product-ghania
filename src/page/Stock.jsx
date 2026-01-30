@@ -6,7 +6,9 @@ const Stock = () => {
   const [data, setData] = useState([]);
   const [dataProduct, setDataProduct] = useState([]);
   const [ isOpen, setIsOpen ] = useState(false);
-  const [form] =Form.useForm();
+  const [select, setSelect] = useState(null);
+  const [isEdit, setIsEdited] = useState(false);
+  const [form] = Form.useForm();
 
 
   const columns = [
@@ -29,7 +31,7 @@ const Stock = () => {
       title: 'Type',
       dataIndex: 'type',
       key: 'type',
-      render: ( data ) => <p>{data ? "In" : "Out" }</p>
+      render: ( data ) => <p className={`${data ? "text-green-600" : "text-red-600"}`} >{data ? "In" : "Out" }</p>
     },
     {
       title: 'Action',
@@ -38,7 +40,7 @@ const Stock = () => {
       width:250,
       render: ( _, data ) => (
         <div className='flex items-center gap-3' >
-          <Button>Edit</Button>
+          <Button onClick={() => handleEdit(data)} >Edit</Button>
           <Button onClick={() => deletedStock(data.id)} >Deleted</Button>
         </div>
       )
@@ -55,6 +57,7 @@ const Stock = () => {
       updated_at,
       created_at,
       product_id (
+        id,
         name_product
       )
     `)
@@ -81,38 +84,63 @@ const Stock = () => {
     if(error) return console.error(error.message);
     fetchData();
     alert("deleted succesfully !!")
-
   };
 
   const handleSubmit = async (values) => {
     const { product_id, qty, type } = values;
+    console.log('ini data product: ', dataProduct);
 
-    let newStock = dataProduct.stock;
+    const product = dataProduct.find(( data ) => data.id === product_id );
+
+    let newStock = product.stock;
 
     if(type) {
-      newStock += qty;
+      newStock += Number(qty);
     } else {
-      newStock -= qty
+      newStock -= Number(qty);
       if(newStock < 0 ) {
         message.error('stock not available');
         return
       }
     }
 
-    await supabase.from('history_stock').insert({product_id, qty, type});
+    if(isEdit) {
 
-    await supabase.from('product').update({ stock : newStock }).eq('id', product_id);
+      await supabase.from('history_stock').update({product_id, qty, type}).eq("id", select.id)
+      await supabase.from('product').update({ stock : qty }).eq('id', product_id);
+      message.success('udated succesfully');
 
+    } else {
+
+      await supabase.from('history_stock').insert({product_id, qty, type});
+      await supabase.from('product').update({ stock : newStock }).eq('id', product_id);
+      message.success('created succesfully');
+
+    }
+
+    setIsEdited(false);
     setIsOpen(false);
     fetchData();
     form.resetFields();
 
   };
 
+  const handleEdit = async (data) => {
+    setIsOpen(true);
+    setSelect(data);
+    setIsEdited(true);
+
+    form.setFieldsValue({
+      product_id: data.product_id.id,
+      qty: data.qty,
+      type: data.type
+    })
+  };
+
   useEffect(() => {
     fetchData();
     fetchProduct();
-  }, [])
+  }, []);
 
   return (
     <div>
